@@ -1,0 +1,116 @@
+services:
+  db:
+    image: postgres:16
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: payments
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mynet
+
+  migrations:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: migrations
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/payments
+    command: sh -c "uv run alembic upgrade head"
+    restart: "no"
+    networks:
+      - mynet
+
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: api
+    depends_on:
+      db:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/payments
+    command: uv run uvicorn api.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    networks:
+      - mynet
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672" # todo delete
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mynet
+
+  publisher:
+    build:
+      context: .
+      dockerfile: publisher/Dockerfile
+    container_name: publisher
+    depends_on:
+      db:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/payments
+      RABBIT_URL: amqp://guest:guest@rabbitmq:5672/
+    networks:
+      - mynet
+
+  consumer:
+    build:
+      context: .
+      dockerfile: consumer/Dockerfile
+    container_name: consumer
+    depends_on:
+      db:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/payments
+      RABBIT_URL: amqp://guest:guest@rabbitmq:5672/
+    networks:
+      - mynet
+
+volumes:
+  postgres_data:
+
+networks:
+  mynet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.250.0/24
