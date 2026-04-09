@@ -57,7 +57,7 @@ services:
     hostname: rabbitmq
     ports:
       - "5672:5672"
-      - "15672:15672" # todo delete
+      - "15672:15672" # web check
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
