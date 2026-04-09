@@ -10,7 +10,7 @@ from starlette import status
 from api.schemas import PaymentCreateResponse, PaymentCreateRequest, PaymentResponse
 from db.models.payment import Payment
 from db.models.outbox import Outbox
-from db.base import get_session, get_session_for_local
+from db.base import get_session
 
 app = FastAPI()
 
@@ -112,10 +112,3 @@ async def get_payment(
         raise HTTPException(status_code=404, detail="Payment not found")
 
     return payment
-
-
-# todo delete
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -5,12 +5,11 @@ from datetime import datetime
 
 import httpx
 from faststream import FastStream
-from faststream.rabbit import RabbitBroker, RabbitRouter, RabbitMessage
+from faststream.rabbit import RabbitBroker, RabbitRouter
 from sqlalchemy import select
 
 from consts import PAYMENTS_NEW_QUEUE, PAYMENTS_DLQ
-# from db.base import get_session
-from db.base import local_session_maker, session_maker
+from db.base import session_maker
 from db.models.payment import Payment
 
 logging.basicConfig(level=logging.INFO)
@@ -57,7 +56,6 @@ async def webhook_with_retry(url: str, payload: dict):
 
 @router.subscriber(PAYMENTS_NEW_QUEUE)
 async def handle_payment(msg: dict):
-    # async with local_session_maker() as session:
     async with session_maker() as session:
         logger.info(f"Starting handling payment: {msg}")
         payment_uid = msg["payment_uid"]

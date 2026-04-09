@@ -1,2 +1,0 @@
-class DuplicateRequestException(Exception):
-    pass
